@@ -7,7 +7,6 @@ use std::env;
 use std::io::{stdin, stdout, Write};
 
 #[derive(Deserialize, Debug)]
-
 struct OAIChoices {
     text: String,
     index: u8,
@@ -21,7 +20,7 @@ struct OAIResponse {
     object: Option<String>,
     created: Option<u64>,
     model: Option<String>,
-    choices: Vec<OAIChoices>,
+    choices: Vec<OAIChoices>, // Note: This field may not exist in the response
 }
 
 #[derive(Serialize, Debug)]
@@ -38,7 +37,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let preamble = "Answer the following questions accurately, but find a funny way to mention the Rust programming language in your response";
 
-    let oai_token: String = env::var("OAI_TOKEN").unwrap();
+    let oai_token = match env::var("OAI_TOKEN") {
+        Ok(token) => token,
+        Err(_) => {
+            eprintln!("Error: OAI_TOKEN environment variable not found");
+            return Ok(());
+        }
+    };
+
     let auth_header_val = format!("Bearer {}", oai_token);
 
     println!("{esc}c", esc = 27 as char);
@@ -74,13 +80,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
         let body = hyper::body::aggregate(res).await?;
 
-        let json: OAIResponse = serde_json::from_reader(body.reader())?;
+        let json: Result<OAIResponse, _> = serde_json::from_reader(body.reader());
 
-        sp.stop();
-
-        println!("");
-
-        println!("{}", json.choices[0].text);
+        match json {
+            Ok(data) => {
+                sp.stop();
+                if let Some(choice) = data.choices.first() {
+                    println!("{}", choice.text);
+                } else {
+                    eprintln!("Error: No choices found in the response");
+                }
+            }
+            Err(err) => {
+                eprintln!("Error parsing response: {}", err);
+            }
+        }
     }
 
     Ok(())
