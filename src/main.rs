@@ -1,9 +1,8 @@
-use hyper::body::{self, Buf};
-use hyper::{client, header, Body, Client, Request};
+use hyper::body::Buf;
+use hyper::{header, Body, Client, Request};
 use hyper_tls::HttpsConnector;
 use serde_derive::{Deserialize, Serialize};
 use spinners::{Spinner, Spinners};
-use std::ascii::escape_default;
 use std::env;
 use std::io::{stdin, stdout, Write};
 
@@ -17,7 +16,6 @@ struct OAIChoices {
 }
 
 #[derive(Deserialize, Debug)]
-
 struct OAIResponse {
     id: Option<String>,
     object: Option<String>,
@@ -77,6 +75,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let body = hyper::body::aggregate(res).await?;
 
         let json: OAIResponse = serde_json::from_reader(body.reader())?;
+
+        sp.stop();
+
+        println!("");
+
+        println!("{}", json.choices[0].text);
     }
 
     Ok(())
